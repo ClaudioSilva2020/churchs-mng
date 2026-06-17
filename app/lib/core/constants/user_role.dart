@@ -25,14 +25,31 @@ enum UserRole {
     }
   }
 
+  String get apiValue {
+    switch (this) {
+      case UserRole.member:
+        return 'member';
+      case UserRole.servant:
+        return 'servant';
+      case UserRole.leader:
+        return 'leader';
+      case UserRole.media:
+        return 'media';
+      case UserRole.pastor:
+        return 'pastor';
+      case UserRole.nonMember:
+        return 'non_member';
+    }
+  }
+
   /// RF-002: não-membro só acessa a tela inicial pública.
   bool get isMember => this != UserRole.nonMember;
 
   /// RF-009/RF-010: pode criar ministério e gerenciar membros.
   bool get canManageMinistries => this == UserRole.leader || this == UserRole.pastor;
 
-  /// RF-004b: pode publicar banners/conteúdo institucional.
-  bool get canPublishContent => this == UserRole.media || this == UserRole.pastor;
+  /// RF-004b/RF-005: pode publicar e editar banners/conteúdo institucional.
+  bool get canPublishContent => this == UserRole.media || this == UserRole.pastor || this == UserRole.leader;
 
   /// RF-017b/RF-017c: pode acessar o diretório de membros e
   /// adicionar/remover/cadastrar membros.

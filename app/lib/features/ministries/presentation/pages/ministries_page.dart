@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/di/injector.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../auth/presentation/bloc/auth_bloc.dart';
+import '../../data/ministries_api_service.dart';
 import '../../domain/entities/ministry.dart';
 import '../bloc/ministries_cubit.dart';
 
@@ -20,7 +22,7 @@ class MinistriesPage extends StatelessWidget {
     final canManage = context.watch<AuthBloc>().state.role.canManageMinistries;
 
     return BlocProvider(
-      create: (_) => MinistriesCubit(),
+      create: (_) => MinistriesCubit(injector<MinistriesApiService>()),
       child: Scaffold(
         appBar: AppBar(title: const Text('Ministérios')),
         body: BlocBuilder<MinistriesCubit, List<Ministry>>(
@@ -39,7 +41,58 @@ class MinistriesPage extends StatelessWidget {
                     ),
                     title: Text(ministry.name),
                     subtitle: Text(ministry.description),
-                    trailing: const Icon(Icons.chevron_right),
+                    trailing: canManage
+                        ? PopupMenuButton<String>(
+                            icon: const Icon(Icons.more_vert),
+                            onSelected: (value) async {
+                              if (value == 'delete') {
+                                final cubit = context.read<MinistriesCubit>();
+                                final messenger = ScaffoldMessenger.of(context);
+                                final confirmed = await showDialog<bool>(
+                                  context: context,
+                                  builder: (dialogCtx) => AlertDialog(
+                                    title: const Text('Excluir ministério'),
+                                    content: Text(
+                                        'Deseja excluir "${ministry.name}"? Esta ação não pode ser desfeita.'),
+                                    actions: [
+                                      TextButton(
+                                        onPressed: () => Navigator.of(dialogCtx).pop(false),
+                                        child: const Text('Cancelar'),
+                                      ),
+                                      FilledButton(
+                                        style: FilledButton.styleFrom(
+                                            backgroundColor: Colors.red.shade700),
+                                        onPressed: () => Navigator.of(dialogCtx).pop(true),
+                                        child: const Text('Excluir'),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                                if (confirmed != true) return;
+                                final ok = await cubit.deleteMinistry(ministry.id);
+                                messenger.showSnackBar(SnackBar(
+                                  content: Text(ok
+                                      ? 'Ministério excluído.'
+                                      : 'Erro ao excluir ministério.'),
+                                  backgroundColor:
+                                      ok ? Colors.green.shade700 : Colors.red.shade700,
+                                ));
+                              }
+                            },
+                            itemBuilder: (_) => [
+                              const PopupMenuItem(
+                                value: 'delete',
+                                child: Row(
+                                  children: [
+                                    Icon(Icons.delete_outline, color: Colors.red),
+                                    SizedBox(width: 8),
+                                    Text('Excluir', style: TextStyle(color: Colors.red)),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          )
+                        : const Icon(Icons.chevron_right),
                     onTap: () => context.push('/ministries/${ministry.id}?name=${ministry.name}', extra: ministry),
                   ),
                 );
@@ -100,14 +153,19 @@ class MinistriesPage extends StatelessWidget {
                   child: const Text('Cancelar'),
                 ),
                 FilledButton(
-                  onPressed: () {
+                  onPressed: () async {
                     if (nameController.text.trim().isEmpty) return;
-                    cubit.createMinistry(
+                    Navigator.of(dialogContext).pop();
+                    final ok = await cubit.createMinistry(
                       name: nameController.text.trim(),
                       description: descriptionController.text.trim(),
                       hasSchedule: hasSchedule,
                     );
-                    Navigator.of(dialogContext).pop();
+                    if (!context.mounted) return;
+                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                      content: Text(ok ? 'Ministério criado!' : 'Erro ao criar. Verifique se está autenticado.'),
+                      backgroundColor: ok ? Colors.green.shade700 : Colors.red.shade700,
+                    ));
                   },
                   child: const Text('Criar'),
                 ),

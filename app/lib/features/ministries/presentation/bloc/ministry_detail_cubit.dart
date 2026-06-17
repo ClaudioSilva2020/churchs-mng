@@ -1,13 +1,14 @@
 import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../data/ministry_api_service.dart';
 import '../../domain/entities/chat_message.dart';
 import '../../domain/entities/ministry_event.dart';
+import '../../domain/entities/ministry_member.dart';
 import '../../domain/entities/repertoire_plan.dart';
 import '../../domain/entities/repertoire_song.dart';
 import '../../domain/entities/service_slot.dart';
 
-/// Estado da tela de detalhe de um ministério (RF-012 a RF-014, RF-016).
 class MinistryDetailState extends Equatable {
   const MinistryDetailState({
     required this.ministryId,
@@ -17,6 +18,8 @@ class MinistryDetailState extends Equatable {
     required this.slots,
     required this.songs,
     required this.plans,
+    required this.members,
+    required this.isLoading,
   });
 
   final String ministryId;
@@ -26,51 +29,86 @@ class MinistryDetailState extends Equatable {
   final List<ServiceSlot> slots;
   final List<RepertoireSong> songs;
   final List<RepertoirePlan> plans;
+  final List<MinistryMember> members;
+  final bool isLoading;
 
   MinistryDetailState copyWith({
     List<ChatMessage>? messages,
+    List<MinistryEvent>? events,
+    List<ServiceSlot>? slots,
     List<RepertoireSong>? songs,
     List<RepertoirePlan>? plans,
+    List<MinistryMember>? members,
+    bool? isLoading,
   }) {
     return MinistryDetailState(
       ministryId: ministryId,
       ministryName: ministryName,
       messages: messages ?? this.messages,
-      events: events,
-      slots: slots,
+      events: events ?? this.events,
+      slots: slots ?? this.slots,
       songs: songs ?? this.songs,
       plans: plans ?? this.plans,
+      members: members ?? this.members,
+      isLoading: isLoading ?? this.isLoading,
     );
   }
 
   @override
   List<Object?> get props =>
-      [ministryId, ministryName, messages, events, slots, songs, plans];
+      [ministryId, ministryName, messages, events, slots, songs, plans, members, isLoading];
 }
 
-/// TODO(backend): substituir dados mockados por:
-/// - chat: WebSocket via Django Channels (RF-012)
-/// - agenda: GET /api/ministries/{id}/events/ (RF-013)
-/// - escala: GET /api/ministries/{id}/schedule/ (RF-014)
-/// - repertório: GET/POST /api/ministries/{id}/songs/ (RF-016)
-/// - plano de louvor: GET/POST /api/ministries/{id}/repertoire-plans/ (RF-016)
 class MinistryDetailCubit extends Cubit<MinistryDetailState> {
-  MinistryDetailCubit({required String ministryId, required String ministryName})
-      : super(
+  MinistryDetailCubit({
+    required String ministryId,
+    required String ministryName,
+    required MinistryApiService api,
+  })  : _api = api,
+        super(
           MinistryDetailState(
             ministryId: ministryId,
             ministryName: ministryName,
-            messages: _mockMessages,
-            events: _mockEvents,
-            slots: _mockSlots,
-            songs: _mockSongs,
-            plans: _mockPlans,
+            messages: const [],
+            events: const [],
+            slots: const [],
+            songs: const [],
+            plans: const [],
+            members: const [],
+            isLoading: true,
           ),
-        );
+        ) {
+    _load();
+  }
 
+  final MinistryApiService _api;
+
+  Future<void> _load() async {
+    emit(state.copyWith(isLoading: true));
+    try {
+      final results = await Future.wait([
+        _api.fetchEvents(state.ministryId),
+        _api.fetchSlots(state.ministryId),
+        _api.fetchSongs(state.ministryId),
+        _api.fetchPlans(state.ministryId),
+        _api.fetchMinistryMembers(state.ministryId),
+      ]);
+      emit(state.copyWith(
+        events: results[0] as List<MinistryEvent>,
+        slots: results[1] as List<ServiceSlot>,
+        songs: results[2] as List<RepertoireSong>,
+        plans: results[3] as List<RepertoirePlan>,
+        members: results[4] as List<MinistryMember>,
+        isLoading: false,
+      ));
+    } catch (_) {
+      emit(state.copyWith(isLoading: false));
+    }
+  }
+
+  /// RF-012: chat local — WebSocket via Django Channels é uma feature separada.
   void sendMessage(String text) {
     if (text.trim().isEmpty) return;
-
     final message = ChatMessage(
       id: DateTime.now().microsecondsSinceEpoch.toString(),
       author: 'Você',
@@ -78,118 +116,126 @@ class MinistryDetailCubit extends Cubit<MinistryDetailState> {
       sentAt: DateTime.now(),
       isMine: true,
     );
-
     emit(state.copyWith(messages: [...state.messages, message]));
   }
 
-  /// RF-016: qualquer membro do Ministério de Louvor pode cadastrar uma
-  /// música no repertório.
-  void addSong({required String title, required String key, String? referenceUrl}) {
-    final song = RepertoireSong(
-      id: DateTime.now().microsecondsSinceEpoch.toString(),
-      title: title,
-      key: key,
-      referenceUrl: referenceUrl,
-      addedBy: 'Você',
-    );
-    emit(state.copyWith(songs: [...state.songs, song]));
+  Future<bool> createEvent({
+    required String title,
+    required String description,
+    required String location,
+    required DateTime startsAt,
+  }) async {
+    try {
+      final event = await _api.createEvent(
+        ministryId: state.ministryId,
+        title: title,
+        description: description,
+        location: location,
+        startsAt: startsAt,
+      );
+      emit(state.copyWith(events: [...state.events, event]));
+      return true;
+    } catch (_) {
+      return false;
+    }
   }
 
-  /// RF-016: o Líder do Ministério de Louvor monta o plano de louvor de um
-  /// culto, associando músicas a vocalistas.
-  void createPlan({required DateTime serviceDate, required List<RepertoireAssignment> assignments}) {
-    final plan = RepertoirePlan(
-      id: DateTime.now().microsecondsSinceEpoch.toString(),
-      serviceDate: serviceDate,
-      assignments: assignments,
-    );
-    emit(state.copyWith(plans: [...state.plans, plan]));
+  Future<bool> createSlot({
+    required DateTime serviceDate,
+    required String role,
+    required String memberId,
+  }) async {
+    try {
+      final slot = await _api.createSlot(
+        ministryId: state.ministryId,
+        serviceDate: serviceDate,
+        role: role,
+        memberId: memberId,
+      );
+      emit(state.copyWith(slots: [...state.slots, slot]));
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<bool> addSong({
+    required String title,
+    required String key,
+    String? referenceUrl,
+  }) async {
+    try {
+      final song = await _api.addSong(
+        ministryId: state.ministryId,
+        title: title,
+        key: key,
+        referenceUrl: referenceUrl,
+      );
+      emit(state.copyWith(songs: [...state.songs, song]));
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<bool> createPlan({
+    required DateTime serviceDate,
+    required List<Map<String, int>> assignments,
+  }) async {
+    try {
+      final plan = await _api.createPlan(
+        ministryId: state.ministryId,
+        serviceDate: serviceDate,
+        assignments: assignments,
+      );
+      emit(state.copyWith(plans: [...state.plans, plan]));
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<bool> addMinistryMember({required String userId, required String role}) async {
+    try {
+      final member = await _api.addMinistryMember(
+        ministryId: state.ministryId,
+        userId: userId,
+        role: role,
+      );
+      emit(state.copyWith(members: [...state.members, member]));
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<bool> deleteEvent(String eventId) async {
+    try {
+      await _api.deleteEvent(state.ministryId, eventId);
+      emit(state.copyWith(events: state.events.where((e) => e.id != eventId).toList()));
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<bool> deleteSlot(String slotId) async {
+    try {
+      await _api.deleteSlot(state.ministryId, slotId);
+      emit(state.copyWith(slots: state.slots.where((s) => s.id != slotId).toList()));
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<bool> deletePlan(String planId) async {
+    try {
+      await _api.deletePlan(state.ministryId, planId);
+      emit(state.copyWith(plans: state.plans.where((p) => p.id != planId).toList()));
+      return true;
+    } catch (_) {
+      return false;
+    }
   }
 }
-
-final _mockMessages = [
-  ChatMessage(
-    id: '1',
-    author: 'Liderança',
-    text: 'Bom dia, equipe! Reunião confirmada para esta semana.',
-    sentAt: DateTime.now().subtract(const Duration(hours: 3)),
-  ),
-  ChatMessage(
-    id: '2',
-    author: 'João',
-    text: 'Combinado, estarei presente!',
-    sentAt: DateTime.now().subtract(const Duration(hours: 2)),
-  ),
-];
-
-final _mockEvents = [
-  MinistryEvent(
-    id: '1',
-    title: 'Reunião de planejamento',
-    description: 'Pauta: próximos eventos do trimestre.',
-    startsAt: DateTime.now().add(const Duration(days: 3)),
-    location: 'Sala 2 — IBBE',
-  ),
-  MinistryEvent(
-    id: '2',
-    title: 'Encontro mensal',
-    description: 'Confraternização e estudo em grupo.',
-    startsAt: DateTime.now().add(const Duration(days: 10)),
-    location: 'Salão principal',
-  ),
-];
-
-final _mockSlots = [
-  ServiceSlot(
-    id: '1',
-    serviceDate: DateTime.now().add(const Duration(days: 2)),
-    role: 'Responsável',
-    memberName: 'Maria Silva',
-  ),
-  ServiceSlot(
-    id: '2',
-    serviceDate: DateTime.now().add(const Duration(days: 2)),
-    role: 'Apoio',
-    memberName: 'Pedro Santos',
-  ),
-  ServiceSlot(
-    id: '3',
-    serviceDate: DateTime.now().add(const Duration(days: 9)),
-    role: 'Responsável',
-    memberName: 'Ana Costa',
-  ),
-];
-
-final _mockSongs = [
-  const RepertoireSong(
-    id: '1',
-    title: 'Grande É o Senhor',
-    key: 'G',
-    referenceUrl: 'https://youtube.com/watch?v=exemplo1',
-    addedBy: 'Maria Silva',
-  ),
-  const RepertoireSong(
-    id: '2',
-    title: 'Reckless Love (Amor Que Vai Além)',
-    key: 'D',
-    referenceUrl: 'https://youtube.com/watch?v=exemplo2',
-    addedBy: 'Pedro Santos',
-  ),
-  const RepertoireSong(
-    id: '3',
-    title: 'Ousado Amor',
-    key: 'E',
-    addedBy: 'Maria Silva',
-  ),
-];
-
-final _mockPlans = [
-  RepertoirePlan(
-    id: '1',
-    serviceDate: DateTime.now().add(const Duration(days: 2)),
-    assignments: const [
-      RepertoireAssignment(songId: '1', vocalist: 'Maria Silva'),
-      RepertoireAssignment(songId: '2', vocalist: 'Pedro Santos'),
-    ],
-  ),
-];

@@ -1,71 +1,61 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/constants/user_role.dart';
+import '../../data/members_api_service.dart';
 import '../../domain/entities/member.dart';
 
 /// Diretório de membros da igreja (RF-017b/RF-017c).
-///
-/// TODO(backend): substituir `_mockMembers` por GET /api/members/, e enviar
-/// criação/remoção/alteração de papel para POST/DELETE/PATCH /api/members/.
 class MembersCubit extends Cubit<List<Member>> {
-  MembersCubit() : super(_mockMembers);
+  MembersCubit(this._api) : super(const []) {
+    _load();
+  }
 
-  void addMember({required String name, required String email, required UserRole role}) {
-    final member = Member(
-      id: DateTime.now().microsecondsSinceEpoch.toString(),
-      name: name,
-      email: email,
-      role: role,
-    );
-    emit([...state, member]);
+  final MembersApiService _api;
+
+  Future<void> _load() async {
+    try {
+      emit(await _api.fetchMembers());
+    } catch (_) {}
+  }
+
+  Future<bool> addMember({
+    required String username,
+    required String firstName,
+    required String lastName,
+    required String email,
+    required String password,
+    required UserRole role,
+  }) async {
+    try {
+      final member = await _api.createUser(
+        username: username,
+        firstName: firstName,
+        lastName: lastName,
+        email: email,
+        password: password,
+        role: role,
+      );
+      emit([...state, member]);
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<bool> updateRole(String memberId, UserRole role) async {
+    try {
+      final updated = await _api.updateRole(memberId, role);
+      emit([
+        for (final m in state)
+          if (m.id == memberId) updated else m,
+      ]);
+      return true;
+    } catch (_) {
+      return false;
+    }
   }
 
   void removeMember(String memberId) {
-    emit(state.where((member) => member.id != memberId).toList());
-  }
-
-  void updateRole(String memberId, UserRole role) {
-    emit([
-      for (final member in state)
-        if (member.id == memberId) member.copyWith(role: role) else member,
-    ]);
+    emit(state.where((m) => m.id != memberId).toList());
   }
 }
-
-final _mockMembers = [
-  const Member(
-    id: '1',
-    name: 'Maria Silva',
-    email: 'maria.silva@ibbe.dev',
-    role: UserRole.leader,
-    ministries: ['Louvor'],
-  ),
-  const Member(
-    id: '2',
-    name: 'Pedro Santos',
-    email: 'pedro.santos@ibbe.dev',
-    role: UserRole.servant,
-    ministries: ['Louvor', 'PGs'],
-  ),
-  const Member(
-    id: '3',
-    name: 'Ana Costa',
-    email: 'ana.costa@ibbe.dev',
-    role: UserRole.member,
-    ministries: ['Mulheres'],
-  ),
-  const Member(
-    id: '4',
-    name: 'João Pereira',
-    email: 'joao.pereira@ibbe.dev',
-    role: UserRole.media,
-    ministries: [],
-  ),
-  const Member(
-    id: '5',
-    name: 'Pastor Carlos',
-    email: 'pastor.carlos@ibbe.dev',
-    role: UserRole.pastor,
-    ministries: [],
-  ),
-];

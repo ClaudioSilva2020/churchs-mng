@@ -22,6 +22,16 @@ class RepertoireSong extends Equatable {
 
   final String addedBy;
 
+  factory RepertoireSong.fromJson(Map<String, dynamic> json) => RepertoireSong(
+        id: json['id'].toString(),
+        title: json['title'] as String? ?? '',
+        key: json['key'] as String? ?? '',
+        referenceUrl: (json['reference_url'] as String?)?.isNotEmpty == true
+            ? json['reference_url'] as String
+            : null,
+        addedBy: json['added_by_name'] as String? ?? '',
+      );
+
   @override
   List<Object?> get props => [id, title, key, referenceUrl, addedBy];
 }

@@ -4,7 +4,7 @@ from accounts.models import Role, User
 from institutional.models import ChurchPrinciple, ServiceSchedule
 from ministries.models import Ministry, MinistryMembership
 
-PRINCIPLES_TEXT = """A Igreja Batista Bíblica Esperança (IBBE) fundamenta sua fé e prática na \
+PRINCIPLES_TEXT = """A Igreja Batista Bíblica do Eusébio (IBBE) fundamenta sua fé e prática na \
 Palavra de Deus, a Bíblia Sagrada, única regra infalível de fé e conduta.
 
 Cremos em um só Deus, eternamente existente em três pessoas: Pai, Filho e \

@@ -30,12 +30,14 @@ class _CreatePostPageState extends State<CreatePostPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      resizeToAvoidBottomInset: true,
       appBar: AppBar(title: const Text('Nova publicação')),
-      body: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+      body: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
             TextField(
               controller: _titleController,
               decoration: const InputDecoration(labelText: 'Título'),
@@ -76,7 +78,7 @@ class _CreatePostPageState extends State<CreatePostPage> {
               'A seleção de arquivo de mídia será habilitada quando o upload estiver disponível.',
               style: Theme.of(context).textTheme.bodySmall,
             ),
-            const Spacer(),
+            const SizedBox(height: 24),
             SizedBox(
               width: double.infinity,
               child: FilledButton(
@@ -86,11 +88,12 @@ class _CreatePostPageState extends State<CreatePostPage> {
             ),
           ],
         ),
+        ),
       ),
     );
   }
 
-  void _publish(BuildContext context) {
+  Future<void> _publish(BuildContext context) async {
     if (_titleController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Informe um título para a publicação.')),
@@ -98,12 +101,24 @@ class _CreatePostPageState extends State<CreatePostPage> {
       return;
     }
 
-    context.read<BannersCubit>().createPost(
+    final ok = await context.read<BannersCubit>().createPost(
           title: _titleController.text.trim(),
           description: _descriptionController.text.trim(),
           kind: _kind,
           mediaType: _mediaType,
         );
-    Navigator.of(context).pop();
+
+    if (!context.mounted) return;
+
+    if (ok) {
+      Navigator.of(context).pop();
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Erro ao publicar. Verifique se está autenticado.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 }

@@ -16,6 +16,14 @@ class MinistryEvent extends Equatable {
   final DateTime startsAt;
   final String location;
 
+  factory MinistryEvent.fromJson(Map<String, dynamic> json) => MinistryEvent(
+        id: json['id'].toString(),
+        title: json['title'] as String? ?? '',
+        description: json['description'] as String? ?? '',
+        location: json['location'] as String? ?? '',
+        startsAt: DateTime.parse(json['starts_at'] as String),
+      );
+
   @override
   List<Object?> get props => [id, title, description, startsAt, location];
 }

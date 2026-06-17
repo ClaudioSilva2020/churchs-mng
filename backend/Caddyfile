@@ -1,0 +1,27 @@
+{
+    # E-mail para notificações Let's Encrypt
+    email admin@{$DOMINIO}
+}
+
+# API Django + WebSocket
+api.{$DOMINIO} {
+    # Arquivos estáticos e de mídia servidos diretamente (sem bater no Python)
+    handle /static/* {
+        root * /srv
+        file_server
+    }
+    handle /media/* {
+        root * /srv
+        file_server
+    }
+    # Todo o resto vai para o Daphne (incluindo /api/, /admin/, /ws/)
+    reverse_proxy backend:8000
+}
+
+# Flutter Web App
+{$DOMINIO} {
+    root * /srv/flutter
+    file_server
+    # SPA: qualquer rota desconhecida cai no index.html
+    try_files {path} /index.html
+}

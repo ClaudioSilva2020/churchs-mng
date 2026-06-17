@@ -2,15 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/constants/user_role_labels.dart';
+import '../../../../core/di/injector.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../data/members_api_service.dart';
 import '../../domain/entities/member.dart';
 import '../bloc/members_cubit.dart';
 import 'add_member_page.dart';
 import 'member_detail_page.dart';
 
-/// RF-017b: diretório de membros da igreja, acessível ao Pastor.
-///
-/// TODO(backend): substituir lista mockada por GET /api/members/.
+/// RF-017b: diretório de membros da igreja, acessível ao Pastor/Líder.
 class MembersPage extends StatefulWidget {
   const MembersPage({super.key});
 
@@ -31,7 +31,7 @@ class _MembersPageState extends State<MembersPage> {
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
-      create: (_) => MembersCubit(),
+      create: (_) => MembersCubit(injector<MembersApiService>()),
       child: Scaffold(
         appBar: AppBar(title: const Text('Membros')),
         body: Column(

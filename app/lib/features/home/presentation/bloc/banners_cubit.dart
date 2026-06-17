@@ -1,79 +1,103 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../data/banners_api_service.dart';
 import '../../domain/entities/church_banner.dart';
 
-/// Estado do feed de banners/posts (RF-005).
-///
-/// TODO(backend): substituir `_mockBanners` por GET /api/banners/ e enviar
-/// curtidas para POST /api/banners/{id}/like/.
+/// RF-005/RF-008c: feed de banners/posts (Avisos e Eventos).
 class BannersCubit extends Cubit<List<ChurchBanner>> {
-  BannersCubit() : super(_mockBanners);
+  BannersCubit(this._api) : super(const []) {
+    _load();
+  }
 
-  void toggleLike(String bannerId) {
+  final BannersApiService _api;
+
+  Future<void> _load() async {
+    try {
+      emit(await _api.fetchBanners());
+    } catch (_) {
+      // mantém lista vazia; o usuário pode tentar novamente (pull-to-refresh futuro)
+    }
+  }
+
+  Future<void> toggleLike(String bannerId) async {
+    final banner = state.firstWhere((b) => b.id == bannerId);
+    // Atualização otimista
     emit([
-      for (final banner in state)
-        if (banner.id == bannerId)
-          banner.copyWith(
-            likedByMe: !banner.likedByMe,
-            likeCount: banner.likedByMe ? banner.likeCount - 1 : banner.likeCount + 1,
+      for (final b in state)
+        if (b.id == bannerId)
+          b.copyWith(
+            likedByMe: !b.likedByMe,
+            likeCount: b.likedByMe ? b.likeCount - 1 : b.likeCount + 1,
           )
         else
-          banner,
+          b,
+    ]);
+    try {
+      await _api.toggleLike(bannerId: bannerId, currentlyLiked: banner.likedByMe);
+    } catch (_) {
+      // Reverte em caso de erro
+      emit([
+        for (final b in state)
+          if (b.id == bannerId)
+            b.copyWith(
+              likedByMe: banner.likedByMe,
+              likeCount: banner.likeCount,
+            )
+          else
+            b,
+      ]);
+    }
+  }
+
+  void incrementCommentCount(String bannerId) {
+    emit([
+      for (final b in state)
+        if (b.id == bannerId) b.copyWith(commentCount: b.commentCount + 1) else b,
     ]);
   }
 
-  /// RF-008c: Mídia/Pastor publica um novo post no carrossel.
-  void createPost({
+  /// RF-008c: Mídia/Pastor/Líder publica um novo post.
+  Future<bool> createPost({
     required String title,
     required String description,
     required BannerKind kind,
     required BannerMediaType mediaType,
-  }) {
-    final banner = ChurchBanner(
-      id: DateTime.now().microsecondsSinceEpoch.toString(),
-      title: title,
-      description: description,
-      mediaUrl: '',
-      mediaType: mediaType,
-      kind: kind,
-      startsAt: DateTime.now(),
-    );
-    emit([banner, ...state]);
+  }) async {
+    try {
+      final banner = await _api.createPost(
+        title: title,
+        description: description,
+        kind: kind.name,
+        mediaType: mediaType == BannerMediaType.video ? 'video' : 'image',
+      );
+      emit([banner, ...state]);
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<bool> updatePost({
+    required String id,
+    required String title,
+    required String description,
+  }) async {
+    try {
+      final updated = await _api.updatePost(id: id, title: title, description: description);
+      emit([for (final b in state) if (b.id == id) updated else b]);
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<bool> deletePost(String id) async {
+    try {
+      await _api.deletePost(id);
+      emit(state.where((b) => b.id != id).toList());
+      return true;
+    } catch (_) {
+      return false;
+    }
   }
 }
-
-final _mockBanners = [
-  ChurchBanner(
-    id: '1',
-    title: 'Culto de Celebração',
-    description: 'Domingo às 18h — Tema: "Fé em ação". Venha celebrar com a família IBBE!',
-    mediaUrl: '',
-    mediaType: BannerMediaType.photo,
-    kind: BannerKind.service,
-    startsAt: DateTime.now().add(const Duration(days: 2)),
-    likeCount: 42,
-    commentCount: 5,
-  ),
-  ChurchBanner(
-    id: '2',
-    title: 'Conferência de Louvor',
-    description: 'Sexta e sábado — Ministério de Louvor. Inscrições abertas!',
-    mediaUrl: '',
-    mediaType: BannerMediaType.video,
-    kind: BannerKind.event,
-    startsAt: DateTime.now().add(const Duration(days: 5)),
-    likeCount: 18,
-    commentCount: 2,
-  ),
-  ChurchBanner(
-    id: '3',
-    title: 'Palavra do Pastor',
-    description: '"Andando pela fé" — reflexão para a semana.',
-    mediaUrl: '',
-    mediaType: BannerMediaType.photo,
-    kind: BannerKind.word,
-    startsAt: DateTime.now(),
-    likeCount: 67,
-    commentCount: 12,
-  ),
-];

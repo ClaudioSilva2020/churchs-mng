@@ -18,6 +18,18 @@ class Member extends Equatable {
   final UserRole role;
   final List<String> ministries;
 
+  factory Member.fromJson(Map<String, dynamic> json) {
+    final firstName = json['first_name'] as String? ?? '';
+    final lastName = json['last_name'] as String? ?? '';
+    final fullName = '$firstName $lastName'.trim();
+    return Member(
+      id: json['id'].toString(),
+      name: fullName.isNotEmpty ? fullName : (json['username'] as String? ?? ''),
+      email: json['email'] as String? ?? '',
+      role: UserRole.fromApi(json['role'] as String? ?? 'non_member'),
+    );
+  }
+
   Member copyWith({UserRole? role}) {
     return Member(
       id: id,

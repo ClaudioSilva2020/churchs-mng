@@ -39,3 +39,14 @@ class CanManageMembers(BasePermission):
             and request.user.is_authenticated
             and request.user.can_manage_members
         )
+
+
+class CanCreateUsers(BasePermission):
+    """RF-017c: apenas Pastor e Líder criam contas de usuário."""
+
+    def has_permission(self, request, view):
+        return bool(
+            request.user
+            and request.user.is_authenticated
+            and request.user.role in ("leader", "pastor")
+        )

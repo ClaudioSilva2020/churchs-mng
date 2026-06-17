@@ -32,11 +32,43 @@ class ChurchBanner extends Equatable {
   final int commentCount;
   final bool likedByMe;
 
-  ChurchBanner copyWith({int? likeCount, int? commentCount, bool? likedByMe}) {
+  factory ChurchBanner.fromJson(Map<String, dynamic> json) {
+    return ChurchBanner(
+      id: json['id'].toString(),
+      title: json['title'] as String,
+      description: json['description'] as String? ?? '',
+      mediaUrl: json['image'] as String? ?? '',
+      mediaType: json['media_type'] == 'video' ? BannerMediaType.video : BannerMediaType.photo,
+      kind: _kindFromApi(json['kind'] as String? ?? 'post'),
+      startsAt: json['starts_at'] != null
+          ? DateTime.parse(json['starts_at'] as String)
+          : DateTime.parse(json['created_at'] as String),
+      likeCount: json['likes_count'] as int? ?? 0,
+      commentCount: (json['comments'] as List?)?.length ?? 0,
+      likedByMe: json['liked_by_me'] as bool? ?? false,
+    );
+  }
+
+  static BannerKind _kindFromApi(String v) {
+    switch (v) {
+      case 'event': return BannerKind.event;
+      case 'service': return BannerKind.service;
+      case 'word': return BannerKind.word;
+      default: return BannerKind.event;
+    }
+  }
+
+  ChurchBanner copyWith({
+    String? title,
+    String? description,
+    int? likeCount,
+    int? commentCount,
+    bool? likedByMe,
+  }) {
     return ChurchBanner(
       id: id,
-      title: title,
-      description: description,
+      title: title ?? this.title,
+      description: description ?? this.description,
       mediaUrl: mediaUrl,
       mediaType: mediaType,
       kind: kind,

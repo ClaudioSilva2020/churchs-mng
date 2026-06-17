@@ -27,7 +27,7 @@ class User(AbstractUser):
 
     @property
     def can_publish_content(self):
-        return self.role in (Role.MEDIA, Role.PASTOR)
+        return self.role in (Role.MEDIA, Role.PASTOR, Role.LEADER)
 
     @property
     def can_manage_members(self):

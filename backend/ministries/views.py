@@ -16,9 +16,14 @@ from .serializers import (
 class MinistryViewSet(viewsets.ModelViewSet):
     """RF-009: ministérios da igreja."""
 
-    queryset = Ministry.objects.all()
     serializer_class = MinistrySerializer
     permission_classes = [CanManageMinistriesOrReadOnly]
+
+    def get_queryset(self):
+        user = self.request.user
+        if user.can_manage_ministries or user.can_publish_content:
+            return Ministry.objects.all()
+        return Ministry.objects.filter(memberships__user=user)
 
     def perform_create(self, serializer):
         ministry = serializer.save(created_by=self.request.user)

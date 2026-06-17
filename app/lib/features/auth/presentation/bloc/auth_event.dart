@@ -13,32 +13,48 @@ class AuthCheckRequested extends AuthEvent {
 }
 
 class AuthLoginRequested extends AuthEvent {
-  const AuthLoginRequested({required this.email, required this.password});
+  const AuthLoginRequested({required this.username, required this.password});
 
-  final String email;
+  final String username;
   final String password;
 
   @override
-  List<Object?> get props => [email, password];
+  List<Object?> get props => [username, password];
 }
 
 class AuthRegisterRequested extends AuthEvent {
   const AuthRegisterRequested({
-    required this.name,
+    required this.username,
+    required this.firstName,
+    required this.lastName,
     required this.email,
     required this.password,
   });
 
-  final String name;
+  final String username;
+  final String firstName;
+  final String lastName;
   final String email;
   final String password;
 
   @override
-  List<Object?> get props => [name, email, password];
+  List<Object?> get props => [username, firstName, lastName, email, password];
 }
 
 class AuthLogoutRequested extends AuthEvent {
   const AuthLogoutRequested();
+}
+
+/// RF-003: atualização de dados de perfil do usuário autenticado.
+class AuthProfileUpdateRequested extends AuthEvent {
+  const AuthProfileUpdateRequested({this.firstName, this.lastName, this.email});
+
+  final String? firstName;
+  final String? lastName;
+  final String? email;
+
+  @override
+  List<Object?> get props => [firstName, lastName, email];
 }
 
 /// Login local de demonstração, sem chamar a API (backend ainda não

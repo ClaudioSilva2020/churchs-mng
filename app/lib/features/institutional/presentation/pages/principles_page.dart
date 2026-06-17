@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/constants/user_role.dart';
+import '../../../../core/di/injector.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../auth/presentation/bloc/auth_bloc.dart';
+import '../../data/institutional_api_service.dart';
 import '../bloc/principles_cubit.dart';
 
 /// RF-006: princípios/valores da igreja. Editável apenas pelo Pastor.
@@ -15,7 +17,7 @@ class PrinciplesPage extends StatelessWidget {
     final canEdit = context.watch<AuthBloc>().state.role == UserRole.pastor;
 
     return BlocProvider(
-      create: (_) => PrinciplesCubit(),
+      create: (_) => PrinciplesCubit(injector<InstitutionalApiService>()),
       child: Scaffold(
         appBar: AppBar(title: const Text('Princípios da Igreja')),
         body: BlocBuilder<PrinciplesCubit, String>(

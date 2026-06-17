@@ -22,6 +22,17 @@ class Ministry extends Equatable {
   /// RF-016: apenas o Ministério de Louvor tem repertório de músicas.
   final bool hasRepertoire;
 
+  factory Ministry.fromJson(Map<String, dynamic> json) {
+    return Ministry(
+      id: json['id'].toString(),
+      name: json['name'] as String,
+      description: json['description'] as String? ?? '',
+      color: json['color'] as String?,
+      hasSchedule: json['has_schedule'] as bool? ?? false,
+      hasRepertoire: json['has_repertoire'] as bool? ?? false,
+    );
+  }
+
   @override
   List<Object?> get props => [id, name, description, color, hasSchedule, hasRepertoire];
 }

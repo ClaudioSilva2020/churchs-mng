@@ -32,7 +32,6 @@ class RegisterSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         password = validated_data.pop("password")
-        # RF: cadastro público sempre cria usuário com papel "não-membro".
         user = User(role=Role.NON_MEMBER, **validated_data)
         user.set_password(password)
         user.save()

@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/di/injector.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../auth/presentation/bloc/auth_bloc.dart';
+import '../../data/banners_api_service.dart';
 import '../bloc/banners_cubit.dart';
 import '../widgets/banner_carousel.dart';
 import 'create_post_page.dart';
@@ -25,7 +27,7 @@ class HomePage extends StatelessWidget {
     final canManageMembers = authState.role.canManageMembers;
 
     return BlocProvider(
-      create: (_) => BannersCubit(),
+      create: (_) => BannersCubit(injector<BannersApiService>()),
       child: Scaffold(
         appBar: AppBar(
           title: Row(
@@ -33,7 +35,7 @@ class HomePage extends StatelessWidget {
             children: [
               Image.asset('assets/images/logo.png', height: 32),
               const SizedBox(width: 8),
-              const Text('IBBE Connect'),
+              const Text('IBBE'),
             ],
           ),
           actions: [

@@ -17,23 +17,39 @@ class AuthRepositoryImpl implements AuthRepository {
   }
 
   @override
-  Future<AppUser> login({required String email, required String password}) async {
-    final tokens = await _remote.login(email: email, password: password);
+  Future<AppUser> login({required String username, required String password}) async {
+    final tokens = await _remote.login(username: username, password: password);
     await _secureStorage.saveTokens(accessToken: tokens.access, refreshToken: tokens.refresh);
     return _remote.getCurrentUser();
   }
 
   @override
   Future<AppUser> register({
-    required String name,
+    required String username,
+    required String firstName,
+    required String lastName,
     required String email,
     required String password,
   }) async {
-    final tokens = await _remote.register(name: name, email: email, password: password);
+    final tokens = await _remote.register(
+      username: username,
+      firstName: firstName,
+      lastName: lastName,
+      email: email,
+      password: password,
+    );
     await _secureStorage.saveTokens(accessToken: tokens.access, refreshToken: tokens.refresh);
     return _remote.getCurrentUser();
   }
 
   @override
   Future<void> logout() => _secureStorage.clear();
+
+  @override
+  Future<AppUser> updateProfile({
+    String? firstName,
+    String? lastName,
+    String? email,
+  }) =>
+      _remote.updateProfile(firstName: firstName, lastName: lastName, email: email);
 }

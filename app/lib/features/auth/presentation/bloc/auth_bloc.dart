@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -15,22 +16,27 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     on<AuthRegisterRequested>(_onRegisterRequested);
     on<AuthLogoutRequested>(_onLogoutRequested);
     on<AuthDevLoginRequested>(_onDevLoginRequested);
+    on<AuthProfileUpdateRequested>(_onProfileUpdateRequested);
   }
 
   final AuthRepository _authRepository;
 
   Future<void> _onCheckRequested(AuthCheckRequested event, Emitter<AuthState> emit) async {
-    final user = await _authRepository.getCurrentUser();
-    emit(user != null ? AuthState.authenticated(user) : const AuthState.unauthenticated());
+    try {
+      final user = await _authRepository.getCurrentUser();
+      emit(user != null ? AuthState.authenticated(user) : const AuthState.unauthenticated());
+    } catch (_) {
+      emit(const AuthState.unauthenticated());
+    }
   }
 
   Future<void> _onLoginRequested(AuthLoginRequested event, Emitter<AuthState> emit) async {
     emit(const AuthState.loading());
     try {
-      final user = await _authRepository.login(email: event.email, password: event.password);
+      final user = await _authRepository.login(username: event.username, password: event.password);
       emit(AuthState.authenticated(user));
     } catch (e) {
-      emit(AuthState.failure(e.toString()));
+      emit(AuthState.failure(_dioError(e, 'Usuário ou senha incorretos.')));
     }
   }
 
@@ -38,19 +44,35 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     emit(const AuthState.loading());
     try {
       final user = await _authRepository.register(
-        name: event.name,
+        username: event.username,
+        firstName: event.firstName,
+        lastName: event.lastName,
         email: event.email,
         password: event.password,
       );
       emit(AuthState.authenticated(user));
     } catch (e) {
-      emit(AuthState.failure(e.toString()));
+      emit(AuthState.failure(_dioError(e, 'Erro ao criar conta.')));
     }
   }
 
   Future<void> _onLogoutRequested(AuthLogoutRequested event, Emitter<AuthState> emit) async {
     await _authRepository.logout();
     emit(const AuthState.unauthenticated());
+  }
+
+  Future<void> _onProfileUpdateRequested(
+      AuthProfileUpdateRequested event, Emitter<AuthState> emit) async {
+    try {
+      final user = await _authRepository.updateProfile(
+        firstName: event.firstName,
+        lastName: event.lastName,
+        email: event.email,
+      );
+      emit(AuthState.authenticated(user));
+    } catch (_) {
+      // Não altera o estado de auth — a UI exibe o erro via SnackBar.
+    }
   }
 
   Future<void> _onDevLoginRequested(AuthDevLoginRequested event, Emitter<AuthState> emit) async {
@@ -62,6 +84,27 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       hasAutomationAccess: event.role == UserRole.pastor,
     );
     emit(AuthState.authenticated(user));
+  }
+
+  /// Extrai a mensagem de erro legível de uma DioException (resposta DRF).
+  /// Quando o servidor retorna um JSON com erros de validação, mostra o
+  /// texto em português vindo do Django em vez da mensagem técnica do Dio.
+  String _dioError(Object e, String fallback) {
+    if (e is DioException) {
+      final data = e.response?.data;
+      if (data is Map && data.isNotEmpty) {
+        final lines = <String>[];
+        data.forEach((_, val) {
+          if (val is List) {
+            lines.add(val.map((v) => v.toString()).join(', '));
+          } else {
+            lines.add(val.toString());
+          }
+        });
+        if (lines.isNotEmpty) return lines.join('\n');
+      }
+    }
+    return fallback;
   }
 }
 

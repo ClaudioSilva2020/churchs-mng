@@ -3,8 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../bloc/auth_bloc.dart';
 
-/// RF-001/RF-003: cadastro inicial como Não-membro, com possibilidade
-/// futura de solicitar promoção a Membro.
+/// RF-001/RF-003: cadastro inicial como Não-membro.
 class RegisterPage extends StatefulWidget {
   const RegisterPage({super.key});
 
@@ -13,13 +12,17 @@ class RegisterPage extends StatefulWidget {
 }
 
 class _RegisterPageState extends State<RegisterPage> {
-  final _nameController = TextEditingController();
+  final _usernameController = TextEditingController();
+  final _firstNameController = TextEditingController();
+  final _lastNameController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
 
   @override
   void dispose() {
-    _nameController.dispose();
+    _usernameController.dispose();
+    _firstNameController.dispose();
+    _lastNameController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
@@ -39,13 +42,23 @@ class _RegisterPageState extends State<RegisterPage> {
         },
         builder: (context, state) {
           final isLoading = state.status == AuthStatus.loading;
-          return Padding(
+          return SingleChildScrollView(
             padding: const EdgeInsets.all(24),
             child: Column(
               children: [
                 TextField(
-                  controller: _nameController,
+                  controller: _usernameController,
+                  decoration: const InputDecoration(labelText: 'Usuário'),
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: _firstNameController,
                   decoration: const InputDecoration(labelText: 'Nome'),
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: _lastNameController,
+                  decoration: const InputDecoration(labelText: 'Sobrenome'),
                 ),
                 const SizedBox(height: 16),
                 TextField(
@@ -84,7 +97,9 @@ class _RegisterPageState extends State<RegisterPage> {
   void _submit(BuildContext context) {
     context.read<AuthBloc>().add(
           AuthRegisterRequested(
-            name: _nameController.text.trim(),
+            username: _usernameController.text.trim(),
+            firstName: _firstNameController.text.trim(),
+            lastName: _lastNameController.text.trim(),
             email: _emailController.text.trim(),
             password: _passwordController.text,
           ),
